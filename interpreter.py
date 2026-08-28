@@ -58,10 +58,28 @@ class Interpreter:
     def __init__(self):
         self.globals = Environment()
         self.globals.define('print', BuiltinFunction('print', self.builtin_print))
+        self.globals.define('put', BuiltinFunction('put', self.builtin_put))
+        self.globals.define('input', BuiltinFunction('input', self.builtin_input))
 
     def builtin_print(self, args):
         print(*[self.stringify(a) for a in args])
         return None
+
+    def builtin_put(self, args):
+        print(*[self.stringify(a) for a in args], end='', sep='')
+        return None
+
+    def builtin_input(self, args):
+        value = input()
+        try:
+            return int(value)
+        except ValueError:
+            pass
+        try:
+            return float(value)
+        except ValueError:
+            pass
+        return value
 
     def stringify(self, value):
         if value is None:
@@ -197,59 +215,64 @@ class Interpreter:
             return len(value) > 0
         return True
 
+    def get_type_rank(self, value):
+        match value:
+            case bool(): return 0
+            case int(): return 1
+            case float(): return 2
+            case str(): return 3
+            case _: raise LangRuntimeError(f"Cannot determine type rank for {type(value).__name__}")
+
+    def cast_to_rank(self, value, rank):
+        match rank:
+            case 0: return bool(value)
+            case 1: return int(value)
+            case 2: return float(value)
+            case 3: return self.stringify(value)
+            case _: raise LangRuntimeError(f"Invalid type rank {rank}")
+    
     def apply_binary(self, op, left, right):
-        if op == '+':
-            if self.is_number(left) and self.is_number(right):
-                return left + right
-            if isinstance(left, str) and isinstance(right, str):
-                return left + right
-            raise LangRuntimeError(
-                f"Unsupported operand types for +: {type(left).__name__} and {type(right).__name__}"
-            )
-        if op == '-':
-            if self.is_number(left) and self.is_number(right):
-                return left - right
-            raise LangRuntimeError(
-                f"Unsupported operand types for -: {type(left).__name__} and {type(right).__name__}"
-            )
-        if op == '*':
-            if self.is_number(left) and self.is_number(right):
-                return left * right
-            raise LangRuntimeError(
-                f"Unsupported operand types for *: {type(left).__name__} and {type(right).__name__}"
-            )
-        if op == '/':
-            if self.is_number(left) and self.is_number(right):
-                if right == 0:
+        if left is None or right is None:
+            if op == '==': return left == right
+            if op == '!=': return left != right
+            raise LangRuntimeError(f"Unsupported operand types for {op} with nil")
+        
+        rank_left = self.get_type_rank(left)
+        rank_right = self.get_type_rank(right)
+        target_rank = max(rank_left, rank_right)
+        val_left = self.cast_to_rank(left, target_rank)
+        val_right = self.cast_to_rank(right, target_rank)
+
+        # strings
+        if target_rank == 3: 
+            if op == '+': return val_left + val_right
+            if op == '==': return val_left == val_right
+            if op == '!=': return val_left != val_right
+            if op in ('<', '<=', '>', '>='):
+                if op == '<': return val_left < val_right
+                if op == '<=': return val_left <= val_right
+                if op == '>': return val_left > val_right
+                if op == '>=': return val_left >= val_right
+            raise LangRuntimeError(f"Unsupported operator '{op}' for string types")
+        
+        else:
+            if op == '+': return val_left + val_right
+            if op == '-': return val_left - val_right
+            if op == '*': return val_left * val_right
+            if op == '/':
+                if val_right == 0:
                     raise LangRuntimeError("Division by zero")
-                return left / right
-            raise LangRuntimeError(
-                f"Unsupported operand types for /: {type(left).__name__} and {type(right).__name__}"
-            )
-        if op == '%':
-            if self.is_number(left) and self.is_number(right):
-                if right == 0:
+                return val_left / val_right
+            if op == '%':
+                if val_right == 0:
                     raise LangRuntimeError("Modulo by zero")
-                return left % right
-            raise LangRuntimeError(
-                f"Unsupported operand types for %: {type(left).__name__} and {type(right).__name__}"
-            )
-        if op == '==':
-            return left == right
-        if op == '!=':
-            return left != right
-        if op in ('<', '<=', '>', '>='):
-            both_numbers = self.is_number(left) and self.is_number(right)
-            both_strings = isinstance(left, str) and isinstance(right, str)
-            if both_numbers or both_strings:
-                if op == '<':
-                    return left < right
-                if op == '<=':
-                    return left <= right
-                if op == '>':
-                    return left > right
-                return left >= right
-            raise LangRuntimeError(
-                f"Unsupported operand types for {op}: {type(left).__name__} and {type(right).__name__}"
-            )
+                return val_left % val_right
+            if op == '==': return val_left == val_right
+            if op == '!=': return val_left != val_right
+            if op in ('<', '<=', '>', '>='):
+                if op == '<': return val_left < val_right
+                if op == '<=': return val_left <= val_right
+                if op == '>': return val_left > val_right
+                if op == '>=': return val_left >= val_right
+
         raise LangRuntimeError(f"Unknown operator {op}")
