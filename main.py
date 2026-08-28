@@ -2,6 +2,7 @@ import sys
 from lexer import Lexer, LangSyntaxError
 from parser import Parser
 from interpreter import Interpreter, LangRuntimeError
+from repl import Repl
 
 
 def run_source(source):
@@ -20,6 +21,7 @@ def main():
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
     else:
+        Repl().run()
         print("Error: no input files")
 
 if __name__ == '__main__':
