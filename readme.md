@@ -8,6 +8,8 @@ Interpreter for my own language
 - closures
 - recursion
 - builtin io
+- repl
+- coercion
 
 ## usage
 
@@ -54,7 +56,5 @@ countdown finished
 
 ## todo
 
-- coercion
-- repl
 - arrays
 - libraries

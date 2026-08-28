@@ -22,7 +22,6 @@ def main():
             sys.exit(1)
     else:
         Repl().run()
-        print("Error: no input files")
 
 if __name__ == '__main__':
     main()
